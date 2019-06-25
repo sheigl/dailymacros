@@ -1,13 +1,15 @@
 import * as messaging from "messaging";
 import { settingsStorage } from "settings";
 
-// Fetch Sleep Data from Fitbit Web API
-function fetchSleepData(accessToken)  {
+// Fetch Data from Fitbit Web API
+function fetchData(accessToken)  {
   let date = new Date();
   let todayDate = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`; //YYYY-MM-DD
+  
+  let netcarbs = settingsStorage.getItem("netcarbs");
 
-  // Sleep API docs - https://dev.fitbit.com/reference/web-api/sleep/
-  fetch(`https://api.fitbit.com/1.2/user/-/sleep/date/${todayDate}.json`, {
+  // Food API docs - https://dev.fitbit.com/build/reference/web-api/food-logging/#food-or-water-time-series
+  fetch(`https://api.fitbit.com/1.2/user/-/foods/log/date/${todayDate}.json`, {
     method: "GET",
     headers: {
       "Authorization": `Bearer ${accessToken}`
@@ -18,8 +20,13 @@ function fetchSleepData(accessToken)  {
   })
   .then(function(data) {
     let myData = {
-      totalMinutesAsleep: data.summary.totalMinutesAsleep
+      summary: data.summary,
+      goals: data.goals,
+      settings: {
+        showNetCarbs: netcarbs
+      }
     }
+
     if (messaging.peerSocket.readyState === messaging.peerSocket.OPEN) {
       messaging.peerSocket.send(myData);
     }
@@ -32,7 +39,7 @@ settingsStorage.onchange = evt => {
   if (evt.key === "oauth") {
     // Settings page sent us an oAuth token
     let data = JSON.parse(evt.newValue);
-    fetchSleepData(data.access_token) ;
+    fetchData(data.access_token) ;
   }
 };
 
@@ -43,7 +50,7 @@ function restoreSettings() {
     if (key && key === "oauth") {
       // We already have an oauth token
       let data = JSON.parse(settingsStorage.getItem(key))
-      fetchSleepData(data.access_token);
+      fetchData(data.access_token);
     }
   }
 }
